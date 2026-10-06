@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OBMC Entrep Fair POS & Inventory</title>
+    <link rel="stylesheet" href="https://pyscript.net/releases/2026.7.3/core.css">
+    <script type="module" src="https://pyscript.net/releases/2026.7.3/core.js"></script>
+    <style>
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #056ddd; 
+            padding: 10px 0;
+            display: flex;
+            justify-content: flex-end; 
+            z-index: 1000;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        .nav-links {
+            margin-right: 20px;
+        }
+
+        .nav-links a {
+            color: #a0b2c6; 
+            text-decoration: none;
+            font-family: sans-serif;
+            font-size: 14px;
+            margin-left: 20px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            color: #ff0000; 
+            font-weight: bold;
+        }
+
+        body {
+            padding-top: 60px;
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .page-view {
+            display: none;
+        }
+        
+        .page-view.active-view {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- NavBar -->
+    <div class="navbar">
+        <div class="nav-links">
+            <a id="tab-pos" class="active" onclick="switchPage('pos')">📋 Receipt Generator</a>
+            <a id="tab-sku" onclick="switchPage('sku')">📊 SKU Generator</a>
+        </div>
+    </div>
+
+    <!-- recipt generator -->
+    <div id="page-pos" class="page-view active-view">
+        <h3>Menu</h3>
+   
+        <b>Coffee</b><br>
+        <input type="checkbox" class="item" data-name="Espresso Expresso" data-cat="COF" value="80"> Espresso Expresso (₱80)<br>
+        <input type="checkbox" class="item" data-name="Americano Coffino" data-cat="COF" value="99"> Americano Coffino (₱99)<br>
+        <input type="checkbox" class="item" data-name="Latte Leyte" data-cat="COF" value="129"> Latte Leyte (₱129)<br><br>
+
+        <b>Frappe</b><br>
+        <input type="checkbox" class="item" data-name="Matcha Freeze" data-cat="FRP" value="149"> Matcha Freeze (₱149)<br>
+        <input type="checkbox" class="item" data-name="Java Chip Blaster" data-cat="FRP" value="159"> Java Chip Blaster (₱159)<br>
+        <input type="checkbox" class="item" data-name="Caramel Crunch Frap" data-cat="FRP" value="149"> Caramel Crunch Frap (₱149)<br><br>
+
+        <b>Cake</b><br>
+        <input type="checkbox" class="item" data-name="Chocolate Fudge Slice" data-cat="CAK" value="110"> Chocolate Fudge Slice (₱110)<br>
+        <input type="checkbox" class="item" data-name="Blueberry Cheesecake" data-cat="CAK" value="130"> Blueberry Cheesecake (₱130)<br>
+        <input type="checkbox" class="item" data-name="Red Velvet Slice" data-cat="CAK" value="120"> Red Velvet Slice (₱120)<br><br>
+
+        <button py-click="process_stall_checkout">Order</button>
+        <p id="receipt_breakdown_out"></p>
+    </div>
+
+    <!-- SKU generator -->
+    <div id="page-sku" class="page-view">
+        <h3>SKU Generator</h3>
+        Category: 
+        <select id="inv_cat_select">
+            <option value="COF">Coffee</option>
+            <option value="FRP">Frappe</option>
+            <option value="CAK">Cake</option>
+        </select><br><br>
+        Product: <input type="text" id="inv_item_title_in"><br><br>
+        Stock: <input type="number" id="inv_qty_in"><br><br>
+        <button py-click="build_inventory_sku_record">Generate SKU</button>
+        <p id="sku_tag_display"></p>
+    </div>
+
+    <!-- page switching script -->
+    <script>
+        function switchPage(pageId) {
+            document.getElementById('page-pos').classList.remove('active-view');
+            document.getElementById('page-sku').classList.remove('active-view');
+            document.getElementById('tab-pos').classList.remove('active');
+            document.getElementById('tab-sku').classList.remove('active');
+
+            if(pageId === 'pos') {
+                document.getElementById('page-pos').classList.add('active-view');
+                document.getElementById('tab-pos').classList.add('active');
+            } else if(pageId === 'sku') {
+                document.getElementById('page-sku').classList.add('active-view');
+                document.getElementById('tab-sku').classList.add('active');
+            }
+        }
+    </script>
+
+    <!-- python script thingy -->
+    <script type="py">
+        from pyscript import document, display
+
+        def process_stall_checkout(e):
+            # Clear old text
+            document.getElementById("receipt_breakdown_out").innerHTML = ""
+            
+            items = document.querySelectorAll(".item")
+            total = 0
+            names = ""
+            
+            # Simple loop through the checkboxes
+            for i in range(len(items)):
+                box = items.item(i)
+                if box.checked:
+                    price = float(box.value)
+                    item_name = box.getAttribute("data-name")
+                    total = total + price
+                    names = names + item_name + ", "
+            
+            # Check if user picked nothing
+            if total == 0:
+                document.getElementById("receipt_breakdown_out").innerText = "Error: Yo pick a valid item, bruh."
+                return
+
+            # Simple discount
+            discount = 0
+            if total >= 300:
+                discount = total * 0.10
+                
+            net_total = total - discount
+            vat = net_total * 0.12
+            
+            # Show output
+            output_text = "Items: " + names + " | Total: ₱" + str(net_total) + " | VAT: ₱" + str(vat)
+            document.getElementById("receipt_breakdown_out").innerText = output_text
+
+        def build_inventory_sku_record(e):
+            # Clear output box
+            document.getElementById('sku_tag_display').innerHTML = ""
+            
+            # Get values from input fields
+            category = document.getElementById('inv_cat_select').value
+            product_name = document.getElementById('inv_item_title_in').value
+            stock_qty = int(document.getElementById('inv_qty_in').value)
+            
+            # Make SKU using basic slicing and joining
+            cat_code = category[:3].upper()
+            prod_code = product_name[:4].upper()
+            qty_str = str(stock_qty)
+            
+            sku_name = cat_code + "-" + prod_code + "-" + qty_str
+                
+            # Display the SKU
+            display("SKU: " + sku_name, target='sku_tag_display')
+    </script>
+</body>
+</html>
